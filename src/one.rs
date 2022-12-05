@@ -34,12 +34,8 @@ pub fn parse_calories(input: impl BufRead) -> impl Iterator<Item = i32> {
 mod tests {
     use std::{io, fs};
     use super::*;
+    use crate::util::*;
     
-    fn case_path(case: &str) -> String {
-        let cargo_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-        format!("{}/{}/{}", cargo_dir, "cases", case)
-    }
-
     #[test]
     fn prob_example() {
         let case = io::BufReader::new(fs::File::open(case_path("1-1-example")).unwrap());
