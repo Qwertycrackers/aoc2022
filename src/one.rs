@@ -1,36 +1,32 @@
-use std::{io, fs};
 use std::io::prelude::*;
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct ElfCalories {
-    provisions: Vec<i64>
-}
-
-impl ElfCalories {
-    pub fn total() -> i64 {
-        todo!()
-    }
-}
-
-pub fn greatest_calories(input: impl BufRead) -> i64 {
-    todo!()
-}
-
-pub fn parse_elves(input: impl BufRead) -> impl Iterator<Item = ElfCalories> {
-    input.lines().filter_map(|r| r.ok()).scan(Vec::with_capacity(10), |st, el| match (st, el) {
-        (st, "") if st.empty() => None
-        (st, el) => {
-            if let Some(el) = i64.from_str(&el).ok() {
-                st.push_back(el)
+pub fn greatest_calories(input: impl BufRead) -> i32 {
+    input.lines().scan(0, |sum, el| {
+        let el = el.unwrap();
+        eprintln!("el: {}, sum: {}", el, sum);
+        match i32::from_str_radix(el.trim(), 10) {
+            Ok(eln) => {
+                eprintln!("Adding: {}", eln);
+                *sum += eln;
+                Some(None)
             }
-            None
+            Err(_) if el.trim().is_empty() => {
+                let total = *sum;
+                *sum = 0;
+                eprintln!("Yielding: {}", total);
+                Some(Some(total))
+            }
+            _ => {
+                eprintln!("Parsing err! Neither empty string nor integer: {}", el);
+                Some(None)
+            }
         }
-
-    })
+    }).filter_map(|x| x).max().unwrap_or(0)
 }
 
 #[cfg(test)]
 mod tests {
+    use std::{io, fs};
     use super::*;
     
     fn case_path(case: &str) -> String {
@@ -45,16 +41,8 @@ mod tests {
     }
 
     #[test]
-    fn parses() {
-        let case = io::BufReader::new(fs::File::open(case_path("1-1-example")).unwrap());
-        let elves = parse_elves(case).collect::<Vec<_>>();
-        let should_elves = vec![
-            ElfCalories { provisions: vec![1000, 2000, 3000] },
-            ElfCalories { provisions: vec![4000] },
-            ElfCalories { provisions: vec![5000, 6000] },
-            ElfCalories { provisions: vec![7000, 8000, 9000] },
-            ElfCalories { provisions: vec![10000] }
-        ];
-        assert_eq!(elves, should_elves)
+    fn simple_example() {
+        let case = io::Cursor::new(b"\n2000\n500\n500\n\n2500\n\n");
+        assert_eq!(greatest_calories(case), 3000)
     }
 }

@@ -1,6 +1,9 @@
 
-use aoc22::add;
+use std::io;
+use aoc22::one::greatest_calories;
 
 pub fn main() {
-    println!("1 + 2 = {}", add(1, 2))
+    let stdin = io::stdin();
+    let stdin = stdin.lock();
+    println!("{}", greatest_calories(stdin));
 }
