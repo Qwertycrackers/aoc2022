@@ -14,9 +14,29 @@ pub fn eval_strategy(input: impl BufRead) -> u32 {
     .sum()
 }
 
+pub fn eval_full_strategy(input: impl BufRead) -> u32 {
+    input.lines().filter_map(Result::ok).map(|s| {
+        match StratPair::from_str(&s) {
+            Err(_) => {
+                eprintln!("Failed parse: {}", s);
+                0
+            }
+            Ok(p) => eval_strat_pair(p)
+        }
+    })
+    .sum()
+}
+
 const WIN: u32 = 6;
 const LOSE: u32 = 0;
 const TIE: u32 = 3;
+
+#[derive(PartialEq, Eq, Clone, Copy)]
+pub enum Outcome {
+    Win = WIN,
+    LOSE = LOSE,
+    Tie = TIE,
+}
 
 fn eval_pair(RpsPair(p): RpsPair) -> u32 {
     use Rps::*;
