@@ -20,23 +20,23 @@ const TIE: u32 = 3;
 
 fn eval_pair(RpsPair(p): RpsPair) -> u32 {
     use Rps::*;
-    match p {
+    (match p {
         (a, b) if a == b => TIE,
         (Rock, Paper) => WIN,
         (Rock, Scissors) => LOSE,
         (Paper, Rock) => LOSE,
         (Paper, Scissors) => WIN,
-        (Scissors, Rock) => LOSE,
-        (Scissors, Paper) => WIN,
+        (Scissors, Rock) => WIN,
+        (Scissors, Paper) => LOSE,
         _ => TIE, // Impossible, compiler is stupid
-    }
+    }) + p.1 as u32
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Rps {
-    Rock,
-    Paper,
-    Scissors
+    Rock = 1,
+    Paper = 2,
+    Scissors = 3
 }
 
 impl FromStr for Rps {
@@ -58,7 +58,11 @@ impl FromStr for RpsPair {
     type Err = ();
 
     fn from_str(s: &str) -> Result<RpsPair, ()> {
-        Ok(Self((Rps::Rock, Rps::Rock)))
+        let mut letters = s.trim().split(' ');
+        match (letters.next().map(Rps::from_str), letters.next().map(Rps::from_str)) {
+            (Some(Ok(a)), Some(Ok(b))) => Ok(RpsPair((a, b))),
+            _ => Err(())
+        }
     }
 }
 
