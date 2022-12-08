@@ -1,7 +1,8 @@
 use std::io::prelude::*;
 use std::str::FromStr;
+use itertools::Itertools;
 
-pub fn eval_strategy(input: impl BufRead) -> u32 {
+pub fn eval_strategy(input: impl BufRead) -> isize {
     input.lines().filter_map(Result::ok).map(|s| {
         match RpsPair::from_str(&s) {
             Err(_) => {
@@ -14,7 +15,7 @@ pub fn eval_strategy(input: impl BufRead) -> u32 {
     .sum()
 }
 
-pub fn eval_full_strategy(input: impl BufRead) -> u32 {
+pub fn eval_full_strategy(input: impl BufRead) -> isize {
     input.lines().filter_map(Result::ok).map(|s| {
         match StratPair::from_str(&s) {
             Err(_) => {
@@ -27,18 +28,32 @@ pub fn eval_full_strategy(input: impl BufRead) -> u32 {
     .sum()
 }
 
-const WIN: u32 = 6;
-const LOSE: u32 = 0;
-const TIE: u32 = 3;
+const WIN: isize = 6;
+const LOSE: isize = 0;
+const TIE: isize = 3;
 
 #[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Outcome {
     Win = WIN,
-    LOSE = LOSE,
+    Lose = LOSE,
     Tie = TIE,
 }
 
-fn eval_pair(RpsPair(p): RpsPair) -> u32 {
+impl FromStr for Outcome {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, ()> {
+        match s {
+            "X" => Ok(Self::Lose),
+            "Y" => Ok(Self::Tie),
+            "Z" => Ok(Self::Win),
+            _ => Err(())
+        }
+
+    }
+}
+
+fn eval_pair(RpsPair(p): RpsPair) -> isize {
     use Rps::*;
     (match p {
         (a, b) if a == b => TIE,
@@ -49,7 +64,11 @@ fn eval_pair(RpsPair(p): RpsPair) -> u32 {
         (Scissors, Rock) => WIN,
         (Scissors, Paper) => LOSE,
         _ => TIE, // Impossible, compiler is stupid
-    }) + p.1 as u32
+    }) + p.1 as isize
+}
+
+fn eval_strat_pair(StratPair((r, outcome)): StratPair) -> isize {
+    r.compliment(outcome) as isize + outcome as isize
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]
@@ -57,6 +76,21 @@ pub enum Rps {
     Rock = 1,
     Paper = 2,
     Scissors = 3
+}
+
+impl Rps {
+    fn compliment(&self, outcome: Outcome) -> Rps {
+        let matchups = [Rps::Rock, Rps::Paper, Rps::Scissors];
+        let find = |(a, b): (&Rps, &Rps)| if *a == *self { Some(*b) } else { None };
+        if outcome == Outcome::Tie {
+            *self
+        } else {
+            if outcome == Outcome::Win { matchups.iter().cycle().tuple_windows().find_map(find) }
+            else { matchups.iter().rev().cycle().tuple_windows().find_map(find) }
+                    .unwrap_or(*self)
+        }
+
+    }
 }
 
 impl FromStr for Rps {
@@ -86,6 +120,22 @@ impl FromStr for RpsPair {
     }
 }
 
+struct StratPair((Rps, Outcome));
+
+impl FromStr for StratPair {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<StratPair, ()> {
+        let mut letters = s.trim().split(' ');
+        match (letters.next().map(Rps::from_str), letters.next().map(Outcome::from_str)) {
+            (Some(Ok(a)), Some(Ok(b))) => Ok(StratPair((a, b))),
+            _ => Err(())
+        }
+
+    }
+
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -94,5 +144,11 @@ mod tests {
     fn example_1() {
         let case = std::io::Cursor::new(b"A Y\nB X\nC Z");
         assert_eq!(eval_strategy(case), 15)
+    }
+
+    #[test]
+    fn example_2() {
+        let case = std::io::Cursor::new(b"A Y\nB X\nC Z");
+        assert_eq!(eval_full_strategy(case), 12)
     }
 }
