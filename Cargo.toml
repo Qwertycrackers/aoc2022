@@ -2,8 +2,12 @@
 name = "aoc22"
 version = "0.1.0"
 edition = "2021"
+default-run = "aoc22"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 itertools = "0.10.5"
+map_for = "0.3.0"
+tool = "0.2.1"
+

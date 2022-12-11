@@ -115,7 +115,7 @@ wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
 ttgJtRGJQctTZtZT
 CrZsJsPPZsGzwwsLwLmpwMDw",
         );
-        assert_eq!(157, sum_badges(case))
+        assert_eq!(70, sum_badges(case))
     }
 
     #[test]
