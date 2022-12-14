@@ -1,5 +1,5 @@
 use std::io;
-use aoc22::{seven, eight, nine, ten, eleven};
+use aoc22::{seven, eight, nine, ten, eleven, eleven_two};
 
 pub fn main() {
     let stdin = io::stdin();
@@ -14,7 +14,7 @@ pub fn main() {
         Some("ten-one") => println!("{}", ten::sum_signals(stdin, 20, 40)),
         Some("ten-two") => println!("{}", ten::crt_image(stdin)),
         Some("eleven-one") => println!("{}", eleven::monkey_business(stdin)),
-        Some("eleven-two") => println!("{}", eleven::monkey_business_max_worry(stdin)),
+        Some("eleven-two") => println!("{}", eleven_two::monkey_business(stdin)),
         _ => ()
     }
 }

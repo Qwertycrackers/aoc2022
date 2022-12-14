@@ -1,65 +1,53 @@
 use std::io::prelude::*;
 use std::str::FromStr;
+use reikna::factor;
 
 pub fn monkey_business(mut input: impl BufRead) -> usize {
     let mut i = String::new();
     input.read_to_string(&mut i).unwrap();
     let mut monkeys = i.split("\n\n").map(Monkey::from_str).filter_map(Result::ok).collect::<Vec<_>>();
-    let mut mailboxes: Vec<Vec<usize>> = vec![vec![]; monkeys.len()];
+    let mut mailboxes: Vec<Vec<Worry>> = vec![vec![]; monkeys.len()];
+    let lcm = monkeys.iter().map(|m| m.test.div_by).reduce(factor::lcm).unwrap_or(1);
+    eprintln!("Monkeys: {:#?}, lcm: {}", monkeys, lcm);
 
-    for _ in 0..20 {
+    for _n in 0..10000 {
         for (i, monkey) in monkeys.iter_mut().enumerate() {
             monkey.catch_items(mailboxes[i].drain(..));
-            monkey.take_turn(&mut mailboxes);
+            monkey.take_turn(&mut mailboxes, &lcm);
+        }
+        if (_n + 1) % 1000 == 0 || _n == 0 || _n == 19 {
+            eprintln!("== After round {} ==", _n + 1);
+            for (i, monkey) in monkeys.iter().enumerate() {
+                eprintln!("Monkey {} inspected items {} times.", i, monkey.inspections);
+                //eprintln!("{:#?}", monkey);
+                //eprintln!("{:?}", mailboxes[i]);
+            }
         }
     }
 
-    monkeys.sort_unstable_by(|m, n| m.inspections.cmp(&n.inspections));
-    &monkeys.last().unwrap().inspections * &monkeys[monkeys.len() - 2].inspections
+    monkeys.sort_unstable_by_key(|m| m.inspections);
+    monkeys.last().unwrap().inspections * monkeys[monkeys.len() - 2].inspections
 }
 
-pub fn monkey_business_max_worry(mut input: impl BufRead) -> usize {
-    let mut i = String::new();
-    input.read_to_string(&mut i).unwrap();
-    let mut monkeys = i.split("\n\n").map(Monkey::from_str).filter_map(Result::ok).collect::<Vec<_>>();
-    let mut mailboxes: Vec<Vec<usize>> = vec![vec![]; monkeys.len()];
+type Worry = u64;
 
-    for _ in 0..10000 {
-        for (i, monkey) in monkeys.iter_mut().enumerate() {
-            monkey.catch_items(mailboxes[i].drain(..));
-            monkey.take_turn_max_worry(&mut mailboxes);
-        }
-    }
-
-    monkeys.sort_unstable_by(|m, n| m.inspections.cmp(&n.inspections));
-    &monkeys.last().unwrap().inspections * &monkeys[monkeys.len() - 2].inspections
-}
-
+#[derive(Debug)]
 struct Monkey {
     inspections: usize,
-    items: Vec<usize>,
+    items: Vec<Worry>,
     op: Operation,
     test: Test,
 }
  impl Monkey {
 
-     fn catch_items(&mut self, items: impl Iterator<Item = usize>) {
+     fn catch_items(&mut self, items: impl Iterator<Item = Worry>) {
         self.items.extend(items)
      }
 
-     fn take_turn(&mut self, mailboxes: &mut Vec<Vec<usize>>) {
+     fn take_turn(&mut self, mailboxes: &mut Vec<Vec<Worry>>, lcm: &Worry) {
         self.items.drain(..).for_each(|item| {
             self.inspections += 1;
-            let worry = self.op.eval(item) / 3;
-            let target = self.test.eval(&worry);
-            mailboxes[target].push(worry);
-        })
-     }
-
-     fn take_turn_max_worry(&mut self, mailboxes: &mut Vec<Vec<usize>>) {
-        self.items.drain(..).for_each(|item| {
-            self.inspections += 1;
-            let worry = self.op.eval(item);
+            let worry = self.op.eval(item) % *lcm;
             let target = self.test.eval(&worry);
             mailboxes[target].push(worry);
         })
@@ -71,15 +59,15 @@ impl FromStr for Monkey {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let first_usize = |s: &str| s.split(' ').find_map(|s| usize::from_str(s).ok());
+        let first_u64 = |s: &str| s.split(' ').find_map(|s| u64::from_str(s).ok());
         let mut ls = s.lines();
         ls.next(); // Dump first line because they are in order
         match (
-            ls.next().map(|s| s.split(' ').map(|s| s.trim_end_matches(',')).map(usize::from_str).filter_map(Result::ok).collect::<Vec<_>>()),
+            ls.next().map(|s| s.split(' ').map(|s| s.trim_end_matches(',')).map(u64::from_str).filter_map(Result::ok).collect::<Vec<_>>()),
             ls.next().map(Operation::from_str),
-            ls.next().and_then(first_usize),
-            ls.next().and_then(first_usize),
-            ls.next().and_then(first_usize),
+            ls.next().and_then(first_u64),
+            ls.next().and_then(first_u64),
+            ls.next().and_then(first_u64),
         ) {
             (
                 Some(items),
@@ -89,12 +77,12 @@ impl FromStr for Monkey {
                 Some(if_false),
             ) => Ok(Monkey {
                 inspections: 0u8.into(),
-                items,
+                items: items.into_iter().collect(),
                 op,
                 test: Test {
                     div_by,
-                    if_true,
-                    if_false
+                    if_true: if_true as usize,
+                    if_false: if_false as usize
                 }
             }),
             _ => Err(()),
@@ -102,6 +90,7 @@ impl FromStr for Monkey {
     }
 }
 
+#[derive(Debug)]
 struct Operation {
     op_type: OpType,
     l: OpArg,
@@ -109,19 +98,27 @@ struct Operation {
 }
 
 impl Operation {
-    fn eval(&self, item: usize) -> usize {
-        let f = match self.op_type {
-            OpType::Times => |a, b| a * b,
-            OpType::Plus => |a, b| a + b
-        };
-
-        f(self.l.eval(item), self.r.eval(item))
+    fn eval(&self, item: Worry) -> Worry {
+        use OpType::*;
+        use OpArg::*;
+        match (&self.op_type, &self.l, &self.r) {
+            (Times, Val(v), Old) | (Times, Old, Val(v)) => {
+                item * v
+            }
+            (Plus, Val(v), Old) | (Plus, Old, Val(v)) => {
+                item + v
+            }
+            (Plus, Old, Old) => item + item,
+            (Times, Old, Old) => item * item,
+            (Plus, Val(a), Val(b)) => a + b,
+            (Times, Val(a), Val(b)) => a * b,
+        }
     }
 }
 impl FromStr for Operation {
     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, ()> {
         let mut ls = s.split(' ').rev();
         let find_optype = |s: &str| match s.trim() {
             "+" => Ok(OpType::Plus),
@@ -129,7 +126,7 @@ impl FromStr for Operation {
             _ => Err(())
         };
 
-        let parse_arg = |s: &str| match (s.trim(), usize::from_str(s)) {
+        let parse_arg = |s: &str| match (s.trim(), u64::from_str(s)) {
             (_, Ok(val)) => Some(OpArg::Val(val)),
             ("old", _) => Some(OpArg::Old),
             _ => None
@@ -142,34 +139,28 @@ impl FromStr for Operation {
     }
 }
 
+#[derive(Debug)]
 enum OpType {
     Plus,
     Times
 }
 
+#[derive(Debug)]
 enum OpArg {
-    Val(usize),
+    Val(Worry),
     Old
 }
 
-impl OpArg {
-    fn eval(&self, item: usize) -> usize {
-       match self {
-            Self::Val(v) => *v,
-            Self::Old => item,
-       }
-    }
-}
-
+#[derive(Debug)]
 struct Test {
-    div_by: usize,
+    div_by: Worry,
     if_true: usize,
     if_false: usize
 }
 
 impl Test {
-    fn eval(&self, item: &usize) -> usize {
-        if item % self.div_by == 0u8.into() {
+    fn eval(&self, worry: &Worry) -> usize {
+        if *worry % self.div_by == 0 {
             self.if_true
         } else {
             self.if_false
@@ -182,7 +173,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn example_1() {
+    fn example_2() {
         let case = std::io::Cursor::new(
 b"Monkey 0:
   Starting items: 79, 98
@@ -211,6 +202,7 @@ Monkey 3:
   Test: divisible by 17
     If true: throw to monkey 0
     If false: throw to monkey 1");
-        assert_eq!(monkey_business(case), 10605)
+        assert_eq!(monkey_business(case), 2713310158)
     }
 }
+
