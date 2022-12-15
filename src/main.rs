@@ -1,5 +1,5 @@
 use std::io;
-use aoc22::{seven, eight, nine, ten, eleven, eleven_two};
+use aoc22::{seven, eight, nine, ten, eleven, eleven_two, twelve};
 
 pub fn main() {
     let stdin = io::stdin();
@@ -15,6 +15,7 @@ pub fn main() {
         Some("ten-two") => println!("{}", ten::crt_image(stdin)),
         Some("eleven-one") => println!("{}", eleven::monkey_business(stdin)),
         Some("eleven-two") => println!("{}", eleven_two::monkey_business(stdin)),
+        Some("twelve-one") => println!("{}", twelve::shortest_path(stdin)),
         _ => ()
     }
 }
