@@ -40,16 +40,26 @@ pub fn shortest_path(input: impl BufRead) -> Option<u32> {
     let mut heads = VecDeque::with_capacity(20);
     heads.push_back((0, start));
 
-    let get = |h, (x, y)|
-    let shortest_length = loop {
+    let get = |h, (x, y)| Some((0usize, 0usize));
+    loop {
         if let Some((h, (x, y))) = heads.pop_front() {
             get(h, (x + 1, y)).into_iter()
             .chain(get(h, (x - 1, y)).into_iter())
             .chain(get(h, (x, y + 1)).into_iter())
             .chain(get(h, (x, y - 1)).into_iter())
+            .filter_map(|a| a)
+            .find_map(|coords| {
+                if coords == end {
+                    Some(coords);
+                } else {
+                    heads.push_back((h + 1, coords));
+                    None
+                }
+            })
+        } else {
+            break None;
         }
     };
-    shortest_length 
 }
 
 #[cfg(test)]
